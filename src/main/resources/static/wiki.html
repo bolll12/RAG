@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>知识 Wiki · RAG</title><link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/chat.css"><link rel="stylesheet" href="/static/wiki.css">
+  <script src="/static/wiki.js" defer></script>
+</head>
+<body class="wiki-app">
+  <aside class="sidebar">
+    <a class="brand" href="/chat"><span class="brand-mark" aria-hidden="true">知</span><span>知识空间<small>KNOWLEDGE WIKI</small></span></a>
+    <a href="/chat" id="chat-link" class="secondary">← 知识问答与文档上传</a>
+    <form id="scope-form" class="library">
+      <label for="collection">当前知识库</label>
+      <div class="input-action"><input id="collection" value="default" required maxlength="64" pattern="[\w\-\u3400-\u9fff]{1,64}"><button type="submit" aria-label="切换知识库">↵</button></div>
+    </form>
+    <form id="search-form"><label for="search">查找知识页</label><input id="search" type="search" maxlength="200" placeholder="搜索页面标题…"><button class="sr-only" type="submit">搜索</button></form>
+    <nav aria-label="知识页目录"><p id="page-count" class="subtle"></p><div id="page-list" class="wiki-list"></div></nav>
+    <details class="settings"><summary>连接设置</summary><label for="access-key">服务访问密钥</label><input id="access-key" type="password" autocomplete="off" placeholder="服务开启认证时填写"><p class="subtle">密钥仅用于本页请求，不保存。</p><button id="refresh" class="secondary" type="button">重新连接</button></details>
+  </aside>
+  <main>
+    <header class="topbar"><div><strong>知识 Wiki</strong><span class="divider">/</span><span id="scope-label">default</span></div><a href="/docs" target="_blank" rel="noopener" class="mode">API 文档 ↗</a></header>
+    <div class="wiki-workspace">
+      <section class="wiki-intro"><div><p class="eyebrow">持续积累的知识</p><h1>把资料，整理成知识。</h1><p>从来源摘要到主题关联，让每次阅读与提问都有迹可循。</p></div><button id="build" class="send" type="button" disabled>生成 / 更新 Wiki</button></section>
+      <div id="notice" class="wiki-notice" role="status">正在连接服务…</div>
+      <div id="error" class="error" role="alert" hidden></div>
+      <section id="job" class="wiki-job" aria-live="polite" hidden><p id="job-message"></p><progress id="job-progress" max="1" value="0" aria-label="知识整理进度"></progress></section>
+      <div class="wiki-toolbar"><span id="model-label" class="subtle"></span><button id="lint" class="secondary" type="button">检查知识库</button></div>
+      <section id="lint-results" class="wiki-panel" aria-label="知识库检查结果" hidden></section>
+      <article id="reader" class="wiki-panel"><div class="wiki-empty"><span aria-hidden="true">▤</span><h2>你的知识目录，从这里开始</h2><p>上传资料后，点击「生成 / 更新 Wiki」。<br>系统会整理来源摘要、主题知识和关联页面。</p><a class="secondary" href="/chat">前往上传文档 →</a></div></article>
+      <section class="wiki-panel wiki-ask"><h2>向 Wiki 提问</h2><p class="subtle">从已整理且来源有效的知识页中回答，保留原文依据。</p><form id="ask-form"><label class="sr-only" for="question">Wiki 问题</label><textarea id="question" maxlength="2000" required rows="2" placeholder="输入想了解的概念或主题…"></textarea><div class="wiki-ask-actions"><label><input id="save-answer" type="checkbox" checked> 将回答保存为知识页</label><button id="ask" class="send" type="submit" disabled>查询 Wiki ↑</button></div></form><div id="answer" aria-live="polite"></div></section>
+    </div>
+  </main>
+</body>
+</html>

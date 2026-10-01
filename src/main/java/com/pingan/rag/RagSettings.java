@@ -22,6 +22,9 @@ public record RagSettings(String db, String apiKey, String chatBaseUrl, String c
             throw new IllegalArgumentException("关键词覆盖率和相对分数阈值必须介于 0 和 1");
     }
     public static RagSettings load() {
+        return from(environment());
+    }
+    static Map<String, String> environment() {
         Map<String, String> values = new HashMap<>();
         Path file = Path.of(".env");
         if (Files.exists(file)) {
@@ -41,7 +44,7 @@ public record RagSettings(String db, String apiKey, String chatBaseUrl, String c
             } catch (Exception e) { throw new IllegalStateException("无法读取 .env", e); }
         }
         values.putAll(System.getenv());
-        return from(values);
+        return values;
     }
     static RagSettings from(Map<String, String> v) {
         return new RagSettings(v.getOrDefault("RAG_DB", "data/rag.db"), v.getOrDefault("RAG_API_KEY", ""),

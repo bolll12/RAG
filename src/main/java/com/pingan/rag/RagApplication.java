@@ -18,4 +18,8 @@ public class RagApplication {
     @Bean RagService ragService(RagSettings settings, RagStore store, ModelGateway models) {
         return new RagService(settings, store, models);
     }
+    @Bean WikiSettings wikiSettings() { return WikiSettings.from(RagSettings.environment()); }
+    @Bean(destroyMethod="close") WikiService wikiService(RagStore store, WikiSettings settings) {
+        return new WikiService(store, settings, settings.client()::wiki);
+    }
 }

@@ -18,6 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class ApiIntegrationTest {
     @TestConfiguration static class Config {
+        @Bean @Primary WikiSettings testWikiSettings() { return WikiSettings.from(Map.of()); }
         @Bean @Primary RagSettings testSettings() throws Exception {
             return RagSettings.from(Map.of("RAG_DB", Files.createTempDirectory("rag-java-test").resolve("rag.db").toString(), "RAG_API_KEY", "test-secret"));
         }
@@ -85,5 +86,16 @@ class ApiIntegrationTest {
         mvc.perform(post("/ask").header("Authorization",AUTH).contentType("application/json").content("not-json"))
                 .andExpect(status().isBadRequest());
         mvc.perform(multipart("/documents/upload").header("Authorization", AUTH)).andExpect(status().isBadRequest());
+    }
+    @Test void wikiPageAuthenticationAndMissingModel() throws Exception {
+        mvc.perform(get("/wiki")).andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("向 Wiki 提问")));
+        mvc.perform(get("/api/wiki/pages")).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/wiki/build").contentType("application/json").content("{}"))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/wiki/status").header("Authorization", AUTH)).andExpect(status().isOk()).andExpect(jsonPath("$.enabled").value(false));
+        mvc.perform(post("/api/wiki/build").header("Authorization", AUTH).contentType("application/json").content("{}"))
+                .andExpect(status().isServiceUnavailable());
+        mvc.perform(get("/api/wiki/pages").header("Authorization", AUTH).param("collection", "../other"))
+                .andExpect(status().isUnprocessableEntity());
     }
 }

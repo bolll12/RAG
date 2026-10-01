@@ -81,4 +81,17 @@ public final class CompatibleModelClient implements ModelGateway {
         if (!answer.isTextual() || answer.asText().isBlank()) throw new ModelException("生成模型响应格式无效");
         return answer.asText();
     }
+    String wiki(String system, String input) {
+        var response = post(settings.chatBaseUrl(), settings.chatApiKey(), "/chat/completions", Json.map(
+                "model", settings.chatModel(), "temperature", 0, "max_tokens", 2400,
+                "response_format", Json.map("type", "json_object"),
+                "messages", List.of(Json.map("role", "system", "content", system),
+                        Json.map("role", "user", "content", input))));
+        var choice = response.path("choices").path(0);
+        if ("length".equals(choice.path("finish_reason").asText()))
+            throw new ModelException("Wiki 生成内容超过输出上限，请减小 RAG_WIKI_BATCH_CHARS 后重试");
+        var content = choice.path("message").path("content");
+        if (!content.isTextual() || content.asText().isBlank()) throw new ModelException("Wiki 模型未返回有效内容");
+        return content.asText();
+    }
 }

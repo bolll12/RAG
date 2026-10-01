@@ -7,6 +7,7 @@ import java.util.*;
 
 public final class RagStore {
     private final String url;
+    private final List<java.util.function.Consumer<String>> documentListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     @FunctionalInterface interface Work<T> { T run(Connection db) throws Exception; }
     public RagStore(RagSettings settings) {
         try { Files.createDirectories(Path.of(settings.db()).toAbsolutePath().getParent()); }
@@ -35,6 +36,7 @@ public final class RagStore {
             if (!columns.contains("chunk_strategy")) update(db, "ALTER TABLE documents ADD COLUMN chunk_strategy TEXT NOT NULL DEFAULT 'paragraph'");
             if (!columns.contains("chunk_size")) update(db, "ALTER TABLE documents ADD COLUMN chunk_size INTEGER NOT NULL DEFAULT " + settings.chunkSize());
             if (!columns.contains("chunk_overlap")) update(db, "ALTER TABLE documents ADD COLUMN chunk_overlap INTEGER NOT NULL DEFAULT " + settings.overlap());
+            WikiStore.initialize(db);
             return null;
         });
     }
@@ -101,7 +103,26 @@ public final class RagStore {
         return read(db -> query(db, "SELECT c.*,d.title,d.source,d.version FROM chunks c JOIN documents d ON c.document_id=d.id WHERE d.collection=? ORDER BY c.rowid", collection));
     }
     public boolean delete(String id) {
-        return transaction(db -> update(db, "DELETE FROM documents WHERE id=?", id) > 0);
+        String collection = transaction(db -> {
+            var doc = one(db, "SELECT collection FROM documents WHERE id=?", id);
+            if (doc == null) return null;
+            String scope = (String) doc.get("collection");
+            update(db, "DELETE FROM documents WHERE id=?", id);
+            WikiStore.invalidate(db, scope);
+            return scope;
+        });
+        if (collection != null) documentsChanged(collection);
+        return collection != null;
+    }
+    void onDocumentsChanged(java.util.function.Consumer<String> listener) { documentListeners.add(listener); }
+    void removeDocumentListener(java.util.function.Consumer<String> listener) { documentListeners.remove(listener); }
+    void documentsChanged(String collection) {
+        for (var listener : documentListeners) {
+            try { listener.accept(collection); }
+            catch (RuntimeException e) {
+                org.slf4j.LoggerFactory.getLogger(RagStore.class).warn("Wiki 自动更新未能排队，请在 Wiki 页面重试");
+            }
+        }
     }
     void saveTrace(String id, Map<String, Object> trace) {
         read(db -> update(db, "INSERT INTO traces (id,data) VALUES (?,?)", id, Json.write(trace)));

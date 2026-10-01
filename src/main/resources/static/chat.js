@@ -6,6 +6,7 @@ try { collection = sessionStorage.getItem('rag.collection') || 'default'; } catc
 $('collection').value = collection;
 $('active-collection').textContent = collection;
 $('upload-target').textContent = collection;
+$('wiki-link').href = `/wiki?collection=${encodeURIComponent(collection)}`;
 let libraryRequest = 0;
 let turnNumber = 0;
 const strategyLabels = { paragraph: '段落优先', fixed: '固定长度', sentence: '句子优先' };
@@ -295,6 +296,7 @@ function applyCollection() {
   $('document-status').hidden = true;
   $('active-collection').textContent = collection;
   $('upload-target').textContent = collection;
+  $('wiki-link').href = `/wiki?collection=${encodeURIComponent(collection)}`;
   loadLibrary();
   return true;
 }

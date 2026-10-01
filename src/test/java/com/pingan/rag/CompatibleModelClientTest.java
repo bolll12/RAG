@@ -49,4 +49,12 @@ class CompatibleModelClientTest {
         response.set("{\"choices\":[]}");
         assertThrows(ModelException.class, () -> client.answer("问题", "证据"));
     }
+    @Test void wikiUsesStructuredChatCompletionAndRejectsTruncation() {
+        response.set("{\"choices\":[{\"finish_reason\":\"stop\",\"message\":{\"content\":\"{\\\"topics\\\":[]}\"}}]}");
+        assertEquals("{\"topics\":[]}", client.wiki("system", "source"));
+        assertEquals("json_object", Json.read(request.get()).path("response_format").path("type").asText());
+        assertEquals("system", Json.read(request.get()).path("messages").path(0).path("role").asText());
+        response.set("{\"choices\":[{\"finish_reason\":\"length\",\"message\":{\"content\":\"{}\"}}]}");
+        assertThrows(ModelException.class, () -> client.wiki("system", "source"));
+    }
 }

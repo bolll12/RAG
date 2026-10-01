@@ -17,7 +17,8 @@ final class ApiKeyFilter extends OncePerRequestFilter {
         String path = request.getServletPath();
         if (path == null || path.isEmpty()) path = request.getRequestURI().substring(request.getContextPath().length());
         boolean secured = path.equals("/documents") || path.startsWith("/documents/")
-                || path.equals("/search") || path.equals("/ask") || path.startsWith("/traces/");
+                || path.equals("/search") || path.equals("/ask") || path.startsWith("/traces/")
+                || path.equals("/api/wiki") || path.startsWith("/api/wiki/");
         if (secured && !settings.apiKey().isEmpty()) {
             String header = request.getHeader("Authorization");
             String token = header != null && header.regionMatches(true, 0, "Bearer ", 0, 7) ? header.substring(7) : "";

@@ -27,7 +27,7 @@ public final class RagService {
         var parts = TextProcessing.chunks(text, options);
         var vectors = models.embed(parts.stream().map(TextProcessing.Chunk::text).toList());
         if (vectors.size() != parts.size()) throw new ModelException("嵌入向量数量不匹配");
-        return store.transaction(db -> {
+        var result = store.transaction(db -> {
             var current = RagStore.one(db, "SELECT * FROM documents WHERE id=?", id);
             if (current != null && digest.equals(current.get("hash")) && options.matches(current)) return unchanged(id, current);
             var stored = RagStore.one(db, "SELECT vector FROM chunks WHERE vector IS NOT NULL LIMIT 1");
@@ -43,8 +43,11 @@ public final class RagService {
                 RagStore.update(db, "INSERT INTO chunks VALUES(?,?,?,?,?,?)", id + ":" + version + ":" + i, id,
                         part.start(), part.end(), part.text(), vectors.get(i) == null ? null : Json.write(vectors.get(i)));
             }
+            WikiStore.invalidate(db, collection);
             return Json.map("document_id", id, "version", version, "chunks", parts.size(), "unchanged", false);
         });
+        if (!Boolean.TRUE.equals(result.get("unchanged"))) store.documentsChanged(collection);
+        return result;
     }
     private Map<String, Object> unchanged(String id, Map<String, Object> row) {
         return Json.map("document_id", id, "version", row.get("version"), "unchanged", true);

@@ -15,6 +15,7 @@ cp .env.example .env
 ```
 
 - 问答与上传页面：http://127.0.0.1:8000/chat
+- 知识 Wiki：http://127.0.0.1:8000/wiki
 - API 文档：http://127.0.0.1:8000/docs
 - OpenAPI 契约：http://127.0.0.1:8000/openapi.json
 - 健康检查：http://127.0.0.1:8000/health（包含 `runtime: java`）
@@ -60,7 +61,48 @@ RAG_MIN_COSINE=0.35
 
 启用嵌入模型后进行 **BM25 + 向量精确检索 + RRF 融合**。启用或更换嵌入模型、地址、切片参数时，使用新的 `RAG_DB` 并重新导入资料；服务检查索引配置和向量维度。供应商替换同名模型仍需操作者主动重建索引。单独更换生成模型无需重建。
 
-本地 BGE-M3 和 Jev 网关已完成实际调用验证；配置模板不包含凭据。生成模型接口通过模拟 HTTP 服务验证，实际生成模型效果需配置后验收。
+本地 BGE-M3 和 Jev 网关已完成实际调用验证；配置模板不包含凭据。RAG 问答和 Wiki 可以分别配置生成模型。
+
+## LLM Wiki
+
+在「知识问答」左侧进入「知识 Wiki」，首次点击「生成 / 更新 Wiki」，把已有文档整理成持久保存的来源摘要和主题知识。主题页汇集多份文档的知识条目，每条附带逐字原文引用、文档版本和字符位置。页面支持关联链接、反向链接、标题搜索、最近 20 版历史查看和 Markdown 导出。
+
+Wiki 问答在已整理的有效知识中检索，再由生成模型回答；选中「将回答保存为知识页」可将结果及来源沉淀为独立页面。生成模型的摘要仍需结合原文判断，程序验证引用确实来自原文，但这不等于证明摘要的全部语义正确。已保存的回答不会再次作为回答证据，避免未经核对的推论循环强化。
+
+阿里云百炼配置示例（实际密钥只写入未跟踪的 `.env`，重启后生效）：
+
+```dotenv
+RAG_WIKI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+RAG_WIKI_MODEL=qwen-plus
+RAG_WIKI_API_KEY=你的百炼密钥
+RAG_WIKI_BATCH_CHARS=2500
+RAG_WIKI_TIMEOUT=180
+RAG_WIKI_AUTO_UPDATE=true
+```
+
+该地址适用于百炼北京地域，也可使用该地域的业务空间专属地址；其他地域须调整地址和密钥，参见[百炼接口说明](https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions)。Wiki 使用 `/chat/completions` 和 `response_format: {"type":"json_object"}`。如果没有设置 `RAG_WIKI_*` 模型参数，则继承 `RAG_CHAT_*`；显式设置空 `RAG_WIKI_MODEL` 可禁用。bge-m3 和 Jev 分别负责原始文档检索中的向量化与证据判断，Wiki 生成独立调用生成模型。
+
+处理与一致性约定：
+
+- 整理在后台排队执行，页面显示进度和失败原因；同一知识库的重复请求合并，最多排队 32 个知识库。
+- 上传、替换和删除原文后自动排队更新（可关闭）。变化会立即将本库页面标记为待更新，旧知识不参与 Wiki 问答；相同内容上传不触发更新。
+- 以模型及原文内容缓存提取结果，未变化的段落可复用。更新后的页面及关联在同一事务中发布；期间原文变化则丢弃过期结果，自动更新模式会重新排队。缓存保存在本地数据库中。
+- 引用不在原文、格式错误或输出截断时拒绝发布。格式或引用错误最多修正一次；网络错误不会无限重试。失败可手动重试，已完成的提取缓存可复用。服务重启后中断的任务显示失败，可手动继续。
+- 旧页面内容保存在版本记录中。删除来源后，相应来源页和失去依据的主题页归档，不再显示；相关问答页保留为待更新历史内容。
+- 「检查知识库」检查过期、空页面、孤立页面及缺失主题；目前不自动裁定事实矛盾，不做语义相近主题的自动合并，也不提供手工编辑知识页。
+
+Wiki 与 RAG 共用 SQLite 数据库，新增 `wiki_*` 表，启动时自动创建。原始资料与生成知识分别存储，生成过程不改写原文。所有 `/api/wiki/*` 接口沿用 `RAG_API_KEY` 认证。
+
+| Wiki 接口 | 用途 |
+| --- | --- |
+| `POST /api/wiki/build` | `{ "collection": "default" }`，返回后台任务，HTTP 202 |
+| `GET /api/wiki/status?collection=default` | 模型状态、页面数、待更新数及最近任务进度 |
+| `GET /api/wiki/pages?collection=default&q=RAG` | 页面目录，按标题过滤 |
+| `GET /api/wiki/pages/{id}?collection=default` | 知识条目、原文引用及双向关联 |
+| `GET /api/wiki/pages/{id}/revisions?collection=default` | 最近 20 个版本快照 |
+| `GET /api/wiki/pages/{id}/export?collection=default` | 下载 Markdown |
+| `POST /api/wiki/ask` | `{ "question": "什么是 RAG？", "collection": "default", "save": true }` |
+| `GET /api/wiki/lint?collection=default` | 知识库结构与来源检查 |
 
 ## API
 
