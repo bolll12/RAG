@@ -1,0 +1,5 @@
+{"question":"知识库支持哪些文件格式？","expected_sources":["demo.md"]}
+{"question":"同一 source 的文档更新后旧切片如何处理？","expected_sources":["demo.md"]}
+{"question":"混合检索使用什么排名融合算法？","expected_sources":["demo.md"]}
+{"question":"未配置生成模型会怎样？","expected_sources":["demo.md"]}
+{"question":"火星香蕉引力常数","expected_sources":[]}

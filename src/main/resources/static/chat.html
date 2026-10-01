@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>知识问答 · RAG</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/chat.css">
+  <script src="/static/chat.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/chat"><span class="brand-mark" aria-hidden="true">知</span><span>知识空间<small>RAG KNOWLEDGE</small></span></a>
+    <button id="new-chat" class="new-chat" type="button"><span aria-hidden="true">＋</span> 新建问答</button>
+    <section class="library">
+      <h2>知识库</h2>
+      <form id="collection-form">
+        <label for="collection">当前查询范围</label>
+        <div class="input-action"><input id="collection" value="default" maxlength="64" required pattern="[\w\-\u3400-\u9fff]{1,64}" autocomplete="off"><button type="submit" aria-label="加载知识库" title="加载知识库">↵</button></div>
+      </form>
+      <p id="library-status" class="subtle" role="status">正在读取文档…</p>
+      <ul id="documents" class="document-list"></ul>
+      <p id="document-status" class="subtle" role="status" hidden></p>
+      <form id="upload-form" class="upload-form">
+        <label for="upload-files">添加文档知识</label>
+        <input id="upload-files" type="file" accept=".md,.txt,.pdf,.html,.htm,.doc,.docx" multiple required aria-describedby="upload-help">
+        <p id="upload-help" class="subtle">支持 MD、TXT、HTML、Word（DOC/DOCX）、文本型 PDF，每份不超过 10 MB。相同文件名将更新已有文档。</p>
+        <fieldset id="upload-chunk-fields" class="chunk-fields">
+          <legend>切片设置</legend>
+          <label for="upload-strategy">切片方式</label>
+          <select id="upload-strategy"><option value="paragraph">段落优先</option><option value="fixed">固定长度</option><option value="sentence">句子优先</option></select>
+          <p id="upload-strategy-help" class="subtle">优先在换行或中文句号处切分，适合制度、手册。</p>
+          <div class="chunk-numbers"><div><label for="upload-size">片段长度（字符）</label><input id="upload-size" type="number" min="100" max="4000" step="1" value="800" required></div>
+          <div><label for="upload-overlap">重叠长度（字符）</label><input id="upload-overlap" type="number" min="0" max="799" step="1" value="120" required></div></div>
+        </fieldset>
+        <button id="upload-submit" class="secondary" type="submit">上传到当前知识库</button>
+        <p class="subtle">上传目标：<span id="upload-target">default</span></p>
+        <ul id="upload-results" class="upload-results" aria-live="polite" aria-label="上传结果"></ul>
+      </form>
+    </section>
+    <details class="settings">
+      <summary>查询设置</summary>
+      <label for="top-k">参考片段数量</label>
+      <select id="top-k"><option value="3">3 个片段</option><option value="5">5 个片段</option><option value="10">10 个片段</option></select>
+      <label class="process-toggle"><input id="show-process" type="checkbox" checked> 显示检索与判断过程</label>
+      <label for="access-key">服务访问密钥</label>
+      <input id="access-key" type="password" placeholder="仅在服务开启认证时填写" autocomplete="off">
+      <p class="subtle">仅用于本页请求，不保存在浏览器中。</p>
+      <button id="refresh" class="secondary" type="button">更新连接</button>
+    </details>
+    <div class="sidebar-footer"><span class="status-dot" id="connection-dot"></span><span id="connection">正在连接服务</span><a href="/docs" target="_blank" rel="noopener">API 文档 ↗</a></div>
+  </aside>
+  <main>
+    <header class="topbar"><div><strong>知识问答</strong><span class="divider">/</span><span id="active-collection">default</span></div><span id="mode" class="mode">检查运行模式…</span></header>
+    <div id="mode-notice" class="notice" role="status" hidden></div>
+    <section class="workspace">
+      <div id="welcome" class="welcome">
+        <div class="knowledge-symbol" aria-hidden="true">✳</div>
+        <h1>让知识，成为答案。</h1>
+        <p>从你的知识库出发，找到有据可循的回答。</p>
+        <div class="suggestions">
+          <button type="button" data-question="什么是 RAG？它适合解决哪些问题？"><span>理解基本原理</span>什么是 RAG，它适合哪些问题？ <b aria-hidden="true">↗</b></button>
+          <button type="button" data-question="混合检索为什么使用 RRF 排名融合？"><span>探索检索策略</span>混合检索为什么使用 RRF？ <b aria-hidden="true">↗</b></button>
+          <button type="button" data-question="如何评测 RAG 的检索和回答质量？"><span>关注回答质量</span>如何评测 RAG 的效果？ <b aria-hidden="true">↗</b></button>
+        </div>
+      </div>
+      <div id="messages" class="messages" aria-label="问答记录"></div>
+      <div id="pending" class="pending" role="status" hidden><span class="pulse"></span>正在检索知识并组织回答…</div>
+    </section>
+    <div class="composer-wrap">
+      <div id="error" class="error" role="alert" hidden></div>
+      <form id="ask-form" class="composer">
+        <label class="sr-only" for="question">你的问题</label>
+        <textarea id="question" placeholder="向知识库提问…" rows="2" maxlength="2000" required></textarea>
+        <div class="composer-bottom"><span>每次提问独立检索 · 回答可核对来源</span><button id="send" class="send" type="submit">发送 <span aria-hidden="true">↑</span></button></div>
+      </form>
+      <p class="footnote">Enter 发送，Shift + Enter 换行。请结合原文核对回答中的条件与例外。</p>
+    </div>
+  </main>
+  <dialog id="document-dialog" aria-labelledby="document-dialog-title">
+    <form id="document-action-form">
+      <h2 id="document-dialog-title"></h2>
+      <p id="document-dialog-description"></p>
+      <div id="replacement-fields">
+        <label for="replacement-file">选择替换文件</label>
+        <input id="replacement-file" type="file" accept=".md,.txt,.pdf,.html,.htm,.doc,.docx">
+        <p class="subtle">支持 MD、TXT、HTML、Word（DOC/DOCX）、文本型 PDF，最多 10 MB。文件名可不同，原文档标识保持不变。</p>
+        <fieldset id="replace-chunk-fields" class="chunk-fields">
+          <legend>切片设置</legend>
+          <label for="replace-strategy">切片方式</label>
+          <select id="replace-strategy"><option value="paragraph">段落优先</option><option value="fixed">固定长度</option><option value="sentence">句子优先</option></select>
+          <p id="replace-strategy-help" class="subtle">优先在换行或中文句号处切分，适合制度、手册。</p>
+          <div class="chunk-numbers"><div><label for="replace-size">片段长度（字符）</label><input id="replace-size" type="number" min="100" max="4000" step="1" value="800" required></div>
+          <div><label for="replace-overlap">重叠长度（字符）</label><input id="replace-overlap" type="number" min="0" max="799" step="1" value="120" required></div></div>
+        </fieldset>
+      </div>
+      <p id="document-action-error" class="error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button id="document-cancel" type="button" class="secondary">取消</button>
+        <button id="document-confirm" type="submit" class="send"></button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

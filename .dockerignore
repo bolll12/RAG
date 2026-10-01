@@ -1,0 +1,12 @@
+.env
+.git
+.env.*
+.venv
+.tools
+target
+data
+legacy-python
+rag_service
+tests
+__pycache__
+.pytest_cache

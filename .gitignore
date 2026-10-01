@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+!.env.*.example
+.DS_Store
+*.log
+.idea/
+.vscode/
+.venv/
+data/
+__pycache__/
+.pytest_cache/
+.tools/
+target/
+legacy-python/
